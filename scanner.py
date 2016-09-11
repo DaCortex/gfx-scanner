@@ -4,35 +4,12 @@ import sys        #basic
 import argparse   #parsing arguments
 import logging    #basic logging
 import datetime   #identification of files
+import time       #taking time for averaging a shot
 import serial     #connection to arduino
 import subprocess #controlling camera
 
-#-----[0] basic setup-----#
-#global variables
-
-#basic
-NO_ARDUINO_CONNECTED = True
-serial_connection = None
-
-#time
-now = datetime.datetime.now()
-
-now_str = ""
-now_str += "_y:" + str(now.year)
-now_str += "_m:" + str(now.month)
-now_str += "_d:" + str(now.day)
-now_str += "_h:" + str(now.hour)
-now_str += "_m:" + str(now.minute)
-
-#logger
-file_name = 'scanner' + now_str + '.log'
-
-logging.basicConfig(filename=file_name, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-#logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-logging.info('Program started')
-
-#argument parser
-parser = argparse.ArgumentParser()
+#testing
+import random
 
 #prints error message and quits the program
 def error(message):
@@ -47,6 +24,48 @@ def error(message):
     logging.info('Exiting program')
     sys.exit(1)
 
+#returns current time for identification
+def id():
+    now = datetime.datetime.now() 
+
+    now_str = ""
+    now_str += "_y:" + str(now.year)
+    now_str += "_m:" + str(now.month)
+    now_str += "_d:" + str(now.day)
+    now_str += "_h:" + str(now.hour)
+    now_str += "_m:" + str(now.minute)
+
+    return now_str
+
+
+
+
+
+
+
+#-----[0] Global variables-----#
+
+#logger
+file_name = 'scanner' + id() + '.log'
+
+logging.basicConfig(filename=file_name, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+logging.info('Program started')
+
+#flags
+NO_ARDUINO_CONNECTED = True
+INFO_INTERVAL = 10 #print info after x pictures
+
+if(NO_ARDUINO_CONNECTED): logging.warning('! NO_ARDUINO_CONNECTED is set to True !')
+
+#serial connection to arduino
+serial_connection = None 
+
+#argument parser
+parser = argparse.ArgumentParser()
+
+
+
+
 #returns the amount of shots that need to be taken
 def compute_shots(degree):
     
@@ -60,13 +79,9 @@ def compute_shots(degree):
 
     return shots
 
-def compute_time(shots):
-    time_per_shot = 2 #Seconds
-    return  shots * time_per_shot
-
 #returns the position of all motors given by the
-def compute_position( shot, degree):
-    
+def compute_position( current_shot, overall_shots, degree):
+
     return 5
 
 def main():
@@ -110,7 +125,7 @@ def main():
     
     #subprocess!
     try:
-        subprocess.call(['ls', '-1'], shell=True)
+        subprocess.call(['ls', '-1'], shell=True) #just for testing
     except Exception, e:
         exit(str(e))
 
@@ -130,21 +145,58 @@ def main():
     logging.info('Testing successful')
 
 #-----[5] scanning material-----#
-    #pre-computations
-    shots = compute_shots(degree)
-    time = compute_time(shots)
+    #pre-computations and definitions
+    overall_shots = compute_shots(degree)
+    average_time = 0 # milliseconds+
+    tmp_average_time = 0 # milliseconds
+    passed_time = 0  # milliseconds
+    left_time = 0    # milliseconds
 
     logging.info('Scanning information')
     logging.info('- Degree: '           + str(degree) + '°')
-    logging.info('- Overall shots: '    + str(shots))
-    logging.info('- Time estimation: '  + str(time)  + ' seconds')
+    logging.info('- Overall shots: '    + str(overall_shots))
 
     logging.info('Scanning material')
 
+    for current_shot in range( 1, overall_shots +1):
+        #time taking 2
+        time_1 = int(round(time.time() * 1000))
 
-    #scanning apparatus
 
-    #camera
+        #calculating current motor positions
+        current_position = compute_position( current_shot, overall_shots, degree);
+
+        #setting current motor positions
+        time.sleep(1.5)
+
+        #taking and waiting for picture
+        current_filename = "image" + id() + ".raw"
+
+        #validating, that picture is saved
+
+
+
+        #time taking 2
+        time_2 = int(round(time.time() * 1000))
+
+        #averaging time
+        if(average_time == 0):  #first time taking
+            average_time = time_2 - time_1
+        else:                   #every other case of time taking
+            tmp_average_time = time_2 - time_1
+            average_time = (average_time + tmp_average_time) / 2
+
+        #information output
+        if((current_shot % INFO_INTERVAL) == 0): #time to print some info
+
+            left_time = average_time * (overall_shots - current_shot)
+
+            print("Average time for a picture: " + str(average_time) + " Milliseconds")
+            print("               Passed time: " + str(passed_time/1000)  +  " Seconds")
+            print("     Left time (estimated): " + str(left_time/1000)    + " Seconds")
+
+        passed_time += average_time
+
 
     logging.info('Scanning done')
 
