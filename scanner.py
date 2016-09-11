@@ -11,6 +11,11 @@ import subprocess #controlling camera
 #testing
 import random
 
+
+
+
+#----- UTILITY METHODS -----#
+
 #prints error message and quits the program
 def error(message):
     logging.warning('- Error message:')
@@ -19,7 +24,7 @@ def error(message):
 
     logging.warning(message)
     
-    sys.stderr.write("[Runtime Error] See " + file_name + " for further information.")
+    sys.stderr.write("[Runtime Error] See " + LOG_FILENAME + " for further information.")
 
     logging.info('Exiting program')
     sys.exit(1)
@@ -40,31 +45,27 @@ def id():
 
 
 
+#----- FLAGS -----#
+#for basic testing when there is no real system attatched
+SANDBOX = True
+if(SANDBOX): logging.warning('! SANDBOX is set to True !')
+
+#print info after x pictures
+INFO_INTERVAL = 10
 
 
 
-#-----[0] Global variables-----#
+
+
+#----- GLOBAL VARIABLES -----#
 
 #logger
-file_name = 'scanner' + id() + '.log'
-
-logging.basicConfig(filename=file_name, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-logging.info('Program started')
-
-#flags
-NO_ARDUINO_CONNECTED = True
-INFO_INTERVAL = 10 #print info after x pictures
-
-if(NO_ARDUINO_CONNECTED): logging.warning('! NO_ARDUINO_CONNECTED is set to True !')
-
-#serial connection to arduino
-serial_connection = None 
-
-#argument parser
-parser = argparse.ArgumentParser()
+LOG_FILENAME = 'scanner' + id() + '.log'
 
 
 
+
+#----- METHODS -----#
 
 #returns the amount of shots that need to be taken
 def compute_shots(degree):
@@ -84,10 +85,28 @@ def compute_position( current_shot, overall_shots, degree):
 
     return 5
 
+
+
+
+#----- MAIN -----#
+
 def main():
+
+
 #-----[0] basic setup-----#
 
-    #see line 10
+    logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    logging.info('Program started')
+
+
+
+    #serial connection to arduino
+    serial_connection = None 
+
+    #argument parser
+    parser = argparse.ArgumentParser()
+
+
 
 #-----[1] basic input validation-----#
     logging.info('Parsing arguments...')
@@ -103,10 +122,12 @@ def main():
 
     logging.info('Parsing successful')
 
+
+
 #-----[2] connecting to arduino-----#
     logging.info('Connecting to arduino...')
 
-    if(not NO_ARDUINO_CONNECTED):
+    if(not SANDBOX):
         try:
             serial_connection = serial.Serial('/dev/ttyUSB0')  # open serial port
         except Exception, e:
@@ -120,6 +141,8 @@ def main():
 
     logging.info('Connection established')
 
+
+
 #-----[3] connecting to camera-----#
     logging.info('Connecting to camera...')
     
@@ -130,6 +153,8 @@ def main():
         exit(str(e))
 
     logging.info('Connection established')
+
+
 
 #-----[4] testing all components-----#
     logging.info('Testing compontents...')
@@ -143,6 +168,8 @@ def main():
     #waiting for user input, that the picture is o.k.
 
     logging.info('Testing successful')
+
+
 
 #-----[5] scanning material-----#
     #pre-computations and definitions
@@ -200,12 +227,16 @@ def main():
 
     logging.info('Scanning done')
 
+
+
 #-----[6] cleaning up-----#
     #arduino
-    if(not NO_ARDUINO_CONNECTED):
+    if(not SANDBOX):
         serial_connection.close() # close port
 
     logging.info('Program ended')
+
+
 
 if __name__ == '__main__':
     main()
