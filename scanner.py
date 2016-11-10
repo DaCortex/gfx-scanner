@@ -21,20 +21,11 @@ def error(message):
 
 #returns current time for identification
 def id():
-    now = datetime.datetime.now() 
-
-    now_str = ""
-    now_str += "_y:" + str(now.year)
-    now_str += "_m:" + str(now.month)
-    now_str += "_d:" + str(now.day)
-    now_str += "_h:" + str(now.hour)
-    now_str += "_m:" + str(now.minute)
-
-    return now_str
+    return str(time.asctime(time.localtime(time.time())))
 
 #----- GLOBALS & FLAGS -----#
 #for basic testing when there is no real system attatched
-CAMERA = True
+CAMERA = False
 ARDUINO = False
 
 #print info after x pictures
@@ -100,12 +91,10 @@ def main():
         print("Creating output folder...")
         os.makedirs(current_directory + "/capturings/")
 
-    current_folder = current_directory + "/capturings/scan" + id() + "/"
+    current_folder = current_directory + "/capturings/capturing: " + id() + "/"
 
     if not os.path.exists(current_folder):
         os.makedirs(current_folder)
-    else:
-        error("WARNING: Current folder already exists (just wait a minute or delete it)")
 
 #-----[1] basic input validation-----#
 
@@ -192,54 +181,58 @@ def main():
 
 #-----[4] scanning material-----#
     print("Capturing...")
+    print("Started: " + time.asctime(time.localtime(time.time())))
 
     #pre-computations and definitions
     overall_shots = compute_shots(degree)
-    average_time = 0 # milliseconds+
-    tmp_average_time = 0 # milliseconds
-    passed_time = 0  # milliseconds
-    left_time = 0    # milliseconds
+    time_average  = 0.0 # Seconds
+    time_started  = float(time.time()) # Seconds
 
     for current_shot in range( 1, overall_shots + 1):
         #time taking 2
         time_1 = float(round(time.time() * 1000.0))
 
-
-        #calculating current motor positions
-        current_position = compute_position( current_shot, overall_shots, degree);
+        if not ARDUINO: time.sleep(1.5) # just simulating
 
         #setting current motor positions
-        time.sleep(1.5) # just simulating
+        if(ARDUINO):
+
+            #calculating current motor positions
+            current_position = compute_position( current_shot, overall_shots, degree);
+
+            #setting motor positions
 
         #taking and waiting for picture
-        current_filepath = current_folder + "capture_" + str(current_shot) + ".raw"
+        if(CAMERA):
+            current_filepath = current_folder + "capture_" + str(current_shot) + ".raw"
 
-        capture_image(gp_context, gp_camera, current_filepath)
-        #validating, that picture is saved
-        if not os.path.exists(current_filepath):
-            exit("File not saved.")
+            capture_image(gp_context, gp_camera, current_filepath)
+        
+            #validating, that picture is saved
+            if not os.path.exists(current_filepath):
+                exit("File not saved.")
 
         #time taking 2
         time_2 = float(round(time.time() * 1000.0))
 
         #averaging time
-        if(average_time == 0):  #first time taking
-            average_time = time_2 - time_1
+        if(time_average == 0.0):  #first time taking
+            time_average = time_2 - time_1
         else:                   #every other case of time taking
-            tmp_average_time = time_2 - time_1
-            average_time = (average_time + tmp_average_time) / 2
+            tmp_time_average = time_2 - time_1
+            time_average = (time_average + tmp_time_average) / 2.0
 
         #information output
         if((current_shot % INFO_INTERVAL) == 0): #time to print some info
 
-            left_time = average_time * (overall_shots - current_shot)
+            passed_time = float(round(time.time() * 1000.0)) - time_started
+            time_left = time_average * (overall_shots - current_shot)
 
-            print("Average time for a picture: " + str(average_time) + " Milliseconds")
-            print("               Passed time: " + str(passed_time/1000)  +  " Seconds")
-            print("     Left time (estimated): " + str(left_time/1000)    + " Seconds")
+            print("Average time for a picture: " + str(round(time_average)) + " Seconds")
+            print("               Passed time: " + str(round(passed_time))  + " Seconds")
+            print("     Left time (estimated): " + str(round(time_left))    + " Seconds")
 
-        passed_time += average_time
-
+    print("Finished: " + time.asctime(time.localtime(time.time())))
 
 #-----[5] cleaning up-----#
     #arduino
