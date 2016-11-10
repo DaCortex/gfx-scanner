@@ -18,13 +18,8 @@ import random
 
 #prints error message and quits the program
 def error(message):
-    logging.warning('- Error message:')
-
-    message = "-- " + message
-
-    logging.warning(message)
     
-    sys.stderr.write("[Runtime Error] See " + LOG_FILENAME + " for further information.")
+    sys.stderr.write("[Error] " + message)
 
     logging.info('Exiting program')
     sys.exit(1)
@@ -48,12 +43,9 @@ def id():
 #----- FLAGS -----#
 #for basic testing when there is no real system attatched
 SANDBOX = True
-if(SANDBOX): logging.warning('! SANDBOX is set to True !')
 
 #print info after x pictures
 INFO_INTERVAL = 10
-
-
 
 
 
@@ -95,10 +87,6 @@ def main():
 
 #-----[0] basic setup-----#
 
-    logging.basicConfig(filename=LOG_FILENAME, level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-    logging.info('Program started')
-
-
 
     #serial connection to arduino
     serial_connection = None 
@@ -109,7 +97,6 @@ def main():
 
 
 #-----[1] basic input validation-----#
-    logging.info('Parsing arguments...')
 
     parser.add_argument("degree", help="scan is executed with given degrees", type=int)
 
@@ -120,45 +107,27 @@ def main():
     if(360%degree != 0):
         error("Degree must be integer divider of 360° (Used: " + str(degree) + ")")
 
-    logging.info('Parsing successful')
-
-
 
 #-----[2] connecting to arduino-----#
-    logging.info('Connecting to arduino...')
-
     if(not SANDBOX):
         try:
             serial_connection = serial.Serial('/dev/ttyUSB0')  # open serial port
         except Exception, e:
-            logging.info('- Unable to connect to arduino')
             error(str(e))
-
-        logging.info('Connection with: ' + serial_connection.name)
 
         #maybe another try catch block for this one
         serial_connection.write(b'hello')     # write a string
 
-    logging.info('Connection established')
-
-
 
 #-----[3] connecting to camera-----#
-    logging.info('Connecting to camera...')
-    
     #subprocess!
     try:
-        subprocess.call(['ls', '-1'], shell=True) #just for testing
+        #subprocess.call(['ls', '-1'], shell=True) #just for testing
+        subprocess.call(['gphoto2', '--capture-image'], shell=True) #just for testing
     except Exception, e:
         exit(str(e))
 
-    logging.info('Connection established')
-
-
-
 #-----[4] testing all components-----#
-    logging.info('Testing compontents...')
-    
     #scanning apparatus
 
     #waiting for user input, that everything moved the right way
@@ -166,9 +135,6 @@ def main():
     #camera
 
     #waiting for user input, that the picture is o.k.
-
-    logging.info('Testing successful')
-
 
 
 #-----[5] scanning material-----#
@@ -178,12 +144,6 @@ def main():
     tmp_average_time = 0 # milliseconds
     passed_time = 0  # milliseconds
     left_time = 0    # milliseconds
-
-    logging.info('Scanning information')
-    logging.info('- Degree: '           + str(degree) + '°')
-    logging.info('- Overall shots: '    + str(overall_shots))
-
-    logging.info('Scanning material')
 
     for current_shot in range( 1, overall_shots +1):
         #time taking 2
@@ -225,17 +185,10 @@ def main():
         passed_time += average_time
 
 
-    logging.info('Scanning done')
-
-
-
 #-----[6] cleaning up-----#
     #arduino
     if(not SANDBOX):
         serial_connection.close() # close port
-
-    logging.info('Program ended')
-
 
 
 if __name__ == '__main__':
