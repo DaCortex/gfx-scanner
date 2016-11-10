@@ -2,7 +2,6 @@
 
 import sys        #basic
 import argparse   #parsing arguments
-import logging    #basic logging
 import datetime   #identification of files
 import time       #taking time for averaging a shot
 import serial     #connection to arduino
@@ -10,6 +9,11 @@ import subprocess #controlling camera
 
 #testing
 import random
+
+#camera
+import gphoto2 as gp
+
+camera = gp.camera
 
 
 
@@ -20,8 +24,6 @@ import random
 def error(message):
     
     sys.stderr.write("[Error] " + message)
-
-    logging.info('Exiting program')
     sys.exit(1)
 
 #returns current time for identification
@@ -123,7 +125,10 @@ def main():
     #subprocess!
     try:
         #subprocess.call(['ls', '-1'], shell=True) #just for testing
-        subprocess.call(['gphoto2', '--capture-image'], shell=True) #just for testing
+        #subprocess.call(['gphoto2', '--capture-image'], shell=True) #just for testing
+        #p = subprocess.Popen(['gphoto2','--filename lel.jpg --capture-image-and-download'],stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        camera.capture_image_and_download()
+
     except Exception, e:
         exit(str(e))
 
