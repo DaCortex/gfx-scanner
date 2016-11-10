@@ -1,29 +1,24 @@
 # -*- coding: utf-8 -*-
 
 import sys        #basic
+import os
+
 import argparse   #parsing arguments
 import datetime   #identification of files
 import time       #taking time for averaging a shot
 import serial     #connection to arduino
-import subprocess #controlling camera
-
-#testing
-import random
+import subprocess #cp
 
 #camera
+import subprocess
 import gphoto2 as gp
-
-camera = gp.camera
-
-
-
 
 #----- UTILITY METHODS -----#
 
 #prints error message and quits the program
 def error(message):
     
-    sys.stderr.write("[Error] " + message)
+    sys.stderr.write("[Error] " + message + "\n")
     sys.exit(1)
 
 #returns current time for identification
@@ -39,12 +34,10 @@ def id():
 
     return now_str
 
-
-
-
 #----- FLAGS -----#
 #for basic testing when there is no real system attatched
-SANDBOX = True
+CAMERA = True
+ARDUINO = False
 
 #print info after x pictures
 INFO_INTERVAL = 10
@@ -53,13 +46,24 @@ INFO_INTERVAL = 10
 
 #----- GLOBAL VARIABLES -----#
 
-#logger
 LOG_FILENAME = 'scanner' + id() + '.log'
 
 
-
-
 #----- METHODS -----#
+
+def capture_image( context, camera, filepath):
+    file_path = gp.check_result(gp.gp_camera_capture(
+        camera, gp.GP_CAPTURE_IMAGE, context))
+
+    target = os.path.join('/tmp', file_path.name)
+    
+    camera_file = gp.check_result(gp.gp_camera_file_get(
+            camera, file_path.folder, file_path.name,
+            gp.GP_FILE_TYPE_NORMAL, context))
+    
+    gp.check_result(gp.gp_file_save(camera_file, target))
+
+    subprocess.call(['cp', target,filepath])
 
 #returns the amount of shots that need to be taken
 def compute_shots(degree):
@@ -89,14 +93,25 @@ def main():
 
 #-----[0] basic setup-----#
 
-
     #serial connection to arduino
     serial_connection = None 
 
     #argument parser
     parser = argparse.ArgumentParser()
 
+    #directory organization
+    current_directory = os.getcwd()
 
+    if not os.path.exists(current_directory + "/capturings"):
+        print("Creating output folder...")
+        os.makedirs(current_directory + "/capturings")
+
+    current_folder = current_directory + "/capturings/scan" + id() + "/"
+
+    if not os.path.exists(current_folder):
+        os.makedirs(current_folder)
+    else:
+        error("WARNING: Current folder already exists (just wait a minute or delete it")
 
 #-----[1] basic input validation-----#
 
@@ -110,39 +125,67 @@ def main():
         error("Degree must be integer divider of 360° (Used: " + str(degree) + ")")
 
 
-#-----[2] connecting to arduino-----#
-    if(not SANDBOX):
+#-----[2] connecting & testing arduino & apparatus-----#
+    if(ARDUINO):
+
+        print("Connecting to Arduino...")
         try:
             serial_connection = serial.Serial('/dev/ttyUSB0')  # open serial port
         except Exception, e:
             error(str(e))
 
-        #maybe another try catch block for this one
-        serial_connection.write(b'hello')     # write a string
+        #moving the apparatus
+        print("Testing Apparatus...")
+        try:
+            serial_connection.write(b'hello')
+
+        except Exception, e:
+                exit(str(e))
+
+    else:
+        print("WARNING: ARDUINO-Flag is set to False")
+
+#-----[3] connecting & testing camera-----#
+
+    if(CAMERA):
+
+        print("Connecting to Camera...")
+        try:
+            gp_context =   gp.gp_context_new()
+            gp_camera  =   gp.check_result(gp.gp_camera_new())
+            gp.check_result(gp.gp_camera_init(gp_camera, gp_context))
+
+        except Exception, e:
+            exit(str(e))
+        
+        print("Testing Camera...")
+        try:
+            #some test photos
+            for x in range( 0, 5):
+                filepath = current_folder + "/test_" + str(x) + ".jpg"
+
+                capture_image(gp_context, gp_camera, filepath)
+
+        except Exception, e:
+                exit(str(e))
+
+    else:
+        print("WARNING: CAMERA-Flag is set to False")
 
 
-#-----[3] connecting to camera-----#
-    #subprocess!
-    try:
-        #subprocess.call(['ls', '-1'], shell=True) #just for testing
-        #subprocess.call(['gphoto2', '--capture-image'], shell=True) #just for testing
-        #p = subprocess.Popen(['gphoto2','--filename lel.jpg --capture-image-and-download'],stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        camera.capture_image_and_download()
+    #waiting for user input, that everything worked the right way
+    print("Press Enter to validate that Camera & Apparatus are working correctly.")
 
-    except Exception, e:
-        exit(str(e))
-
-#-----[4] testing all components-----#
-    #scanning apparatus
-
-    #waiting for user input, that everything moved the right way
-
-    #camera
-
-    #waiting for user input, that the picture is o.k.
+    #some input here
 
 
-#-----[5] scanning material-----#
+
+
+    time.sleep(5.0)
+
+#-----[4] scanning material-----#
+    print("Capturing...")
+
     #pre-computations and definitions
     overall_shots = compute_shots(degree)
     average_time = 0 # milliseconds+
@@ -150,26 +193,27 @@ def main():
     passed_time = 0  # milliseconds
     left_time = 0    # milliseconds
 
-    for current_shot in range( 1, overall_shots +1):
+    for current_shot in range( 1, overall_shots + 1):
         #time taking 2
-        time_1 = int(round(time.time() * 1000))
+        time_1 = float(round(time.time() * 1000.0))
 
 
         #calculating current motor positions
         current_position = compute_position( current_shot, overall_shots, degree);
 
         #setting current motor positions
-        time.sleep(1.5)
+        time.sleep(1.5) # just simulating
 
         #taking and waiting for picture
-        current_filename = "image" + id() + ".raw"
+        current_filepath = current_folder + "capture_" + str(current_shot) + ".raw"
 
+        capture_image(gp_context, gp_camera, current_filepath)
         #validating, that picture is saved
-
-
+        if not os.path.exists(current_filepath):
+            exit("File not saved.")
 
         #time taking 2
-        time_2 = int(round(time.time() * 1000))
+        time_2 = float(round(time.time() * 1000.0))
 
         #averaging time
         if(average_time == 0):  #first time taking
@@ -190,10 +234,14 @@ def main():
         passed_time += average_time
 
 
-#-----[6] cleaning up-----#
+#-----[5] cleaning up-----#
     #arduino
-    if(not SANDBOX):
+    if(ARDUINO):
         serial_connection.close() # close port
+    
+    #camera
+    if(CAMERA):
+        gp.check_result(gp.gp_camera_exit(gp_camera, gp_context))
 
 
 if __name__ == '__main__':
