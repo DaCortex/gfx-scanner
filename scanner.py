@@ -7,18 +7,16 @@ import argparse   #parsing arguments
 import datetime   #identification of files
 import time       #taking time for averaging a shot
 import serial     #connection to arduino
-import subprocess #cp
 
-#camera
-import subprocess
-import gphoto2 as gp
+import gphoto2 as gp #camera
+import subprocess #cp in capture_image()
 
 #----- UTILITY METHODS -----#
 
 #prints error message and quits the program
 def error(message):
     
-    sys.stderr.write("[Error] " + message + "\n")
+    sys.stderr.write("error(): " + message + "\n")
     sys.exit(1)
 
 #returns current time for identification
@@ -34,17 +32,13 @@ def id():
 
     return now_str
 
-#----- FLAGS -----#
+#----- GLOBALS & FLAGS -----#
 #for basic testing when there is no real system attatched
 CAMERA = True
 ARDUINO = False
 
 #print info after x pictures
 INFO_INTERVAL = 10
-
-
-
-#----- GLOBAL VARIABLES -----#
 
 LOG_FILENAME = 'scanner' + id() + '.log'
 
@@ -104,14 +98,14 @@ def main():
 
     if not os.path.exists(current_directory + "/capturings"):
         print("Creating output folder...")
-        os.makedirs(current_directory + "/capturings")
+        os.makedirs(current_directory + "/capturings/")
 
     current_folder = current_directory + "/capturings/scan" + id() + "/"
 
     if not os.path.exists(current_folder):
         os.makedirs(current_folder)
     else:
-        error("WARNING: Current folder already exists (just wait a minute or delete it")
+        error("WARNING: Current folder already exists (just wait a minute or delete it)")
 
 #-----[1] basic input validation-----#
 
@@ -131,15 +125,28 @@ def main():
         print("Connecting to Arduino...")
         try:
             serial_connection = serial.Serial('/dev/ttyUSB0')  # open serial port
-        except Exception, e:
+        except Exception as e:
             error(str(e))
 
         #moving the apparatus
         print("Testing Apparatus...")
         try:
-            serial_connection.write(b'hello')
+            #set pin P4 to low (dunno why)
+            serial_connection.write("M42 P4 S0\n")
 
-        except Exception, e:
+            #home all axis
+            serial_connection.write("G28")
+
+            #resetting all axis to zero          
+            serial_connection.write("G92")
+
+            #Linear Mode and applying values to XYZ axis | F - feedrate | S checks for endstop
+            serial_connection.write("G1 X65 Y28 Z501 F3000 S1")
+
+            #wait for current moves to finish
+            serial_connection.write("M400")
+
+        except Exception as e:
                 exit(str(e))
 
     else:
@@ -155,7 +162,7 @@ def main():
             gp_camera  =   gp.check_result(gp.gp_camera_new())
             gp.check_result(gp.gp_camera_init(gp_camera, gp_context))
 
-        except Exception, e:
+        except Exception as e:
             exit(str(e))
         
         print("Testing Camera...")
@@ -166,7 +173,7 @@ def main():
 
                 capture_image(gp_context, gp_camera, filepath)
 
-        except Exception, e:
+        except Exception as e:
                 exit(str(e))
 
     else:
