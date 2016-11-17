@@ -400,7 +400,6 @@ def main():
             print("Average time for a picture: " + str(round(time_average)) + " Seconds")
             print("               Passed time: " + str(round(passed_time))  + " Seconds")
             #print("     Left time (estimated): " + str(round(time_left))    + " Seconds")
-            error("TEST MAMA")
 
 
     print("Finished: " + time.asctime(time.localtime(time.time())))
