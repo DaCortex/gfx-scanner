@@ -1,0 +1,10 @@
+TODO
+
+- logging output for
+	info output
+	how many pictures have been taken etc.
+	-> estimating left time
+
+- copying .raw files
+
+- starting at specific position in file
