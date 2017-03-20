@@ -8,3 +8,13 @@ TODO
 - copying .raw files
 
 - starting at specific position in file
+
+- copying files to SD Card
+
+- handling marlinrc output
+
+- removing permissions on files
+
+website:
+uni bonn
+btf auf web gl
