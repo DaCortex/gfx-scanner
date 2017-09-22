@@ -2,17 +2,14 @@
 
 import sys        #basic
 import os
+import inspect 
 
 import argparse   #parsing arguments
 import datetime   #identification of files
 import time       #time taking
 
-#to send a file of gcode to the printer
-#from printrun.printcore import printcore
-#from printrun import gcoder
-
-#import serial     #connection to arduino
-#import serial.tools.list_ports #port identification
+import serial     #connection to arduino
+import serial.tools.list_ports #port identification
 
 #import gphoto2 as gp #camera
 import subprocess #cp in capture_image()
@@ -36,8 +33,9 @@ btfscan.LOGFILE = None
 # CAPTURING [filepath: CWD/capturings/ID]
 btfscan.CAMERA = True
 btfscan.ARDUINO = True
+btfscan.PRINTCORE = None
 
-btfscan.btfscan.GCODEFILE = []
+btfscan.GCODEFILE = []
 
 def id():
     if btfscan.DEBUG: print("id()")
@@ -54,28 +52,45 @@ def setup():
         #capturing 
         if not os.path.exists(btfscan.CWD + "/capturings"): #main folder
             os.makedirs(btfscan.CWD + "/capturings")
+            if INFO: print("Creating main folder: " + btfscan.CWD + "/capturings")
 
         capturing_path = btfscan.CWD + "/capturings/" + CID
         os.makedirs(capturing_path)
+        if INFO: print("Creating current folder: " + capturing_path)
 
 
         #logging
         logging_path = capturing_path + "/logging"
         if not os.path.exists(logging_path):
             os.makedirs(logging_path)
+            if INFO: print("Creating logging folder: " + logging_path)
 
         btfscan.LOGFILE = open(logging_path + "/" + "log" + ".txt", 'w+')
         btfscan.LOGFILE.write("Logging started at " + CID)
+        if INFO: print("Creating logfile: " + logging_path + "/" + "log" + ".txt")
+
+
+        #listing ports
+        print("Available ports")
+        ports = list(serial.tools.list_ports.comports())
+        for p in ports:
+            print(p)
+            if "Arduino" in p:
+                print("Found Arduino at: " + str(p))
+
+        print("Connecting to printer")
+        #printer
+        #printcore
+        btfscan.PRINTCORE = printcore('/dev/ttyACM0', 115200)
 
         return True
     except Exception as e:
         print("An error occurred:")
-        print(e.what())
+        print(e)
         return False
 
 def open_file(FILEPATH = None):
-    if btfscan.DEBUG:
-        print("open_file()")
+    if btfscan.DEBUG: print("open_file(" + FILEPATH + ")")
     
     try:
         btfscan.GCODEFILE = open(FILEPATH, 'r')
@@ -119,32 +134,77 @@ def validate_file():
 
     return True
 
+#recieves a method and calls it in a safe code section
+
+def validity_callback(METHOD):
+    if btfscan.DEBUG: print("validity_callback()")
+    try:
+        METHOD()
+        return True
+    except Exception as e:
+        print("An error occurred:")
+        raise e
+
+def run_loop():
+
+    run = True
+    while run:
+        #btfscan.PRINTCORE.
+        pass
+
+    return True
+
+def run_init(FILENAME):
+    if btfscan.DEBUG: print("run_init(" + FILENAME + ")")
+
+    gcode = [i.strip()for i in open(FILENAME)]
+
+    print("Given initial gcode script:")
+    print(gcode)
+
+    gcode = gcoder.LightGCode(gcode)
+
+    btfscan.PRINTCORE.startprint(gcode)
+
+# modes = {"testing" : set_testing}
+
+# def set_mode(MODE = ""):
+
+#     if MODE in modes:
+#         print("Found mode")
+#         modes[MODE]()
+
 def main():
-    #if btfscan.DEBUG: print("main()")
 
     filepath = None
+
     # argument parsing
     if len(sys.argv) == 2:
         filepath = sys.argv[1]
+        btfscan.INFO = True
+        print("Console output is set to INFO.")
+
     elif len(sys.argv) == 3:
         filepath = sys.argv[1]
-        info = sys.argv[2]
+        extra = sys.argv[2]
 
-        if "info" in info:
-            btfscan.INFO = True
-            print("Console output is now set to INFO.")
-
-        if "testing" in info: #no camera & arduino attached
+        if "testing" in extra: #no camera & arduino attached
             btfscan.INFO = True
             btfscan.DEBUG = True
-            CAMERA = False
-            ARDUINO = False
+            btfscan.CAMERA = False
+            btfscan.ARDUINO = False
             print("No arduino & camera connection will be established.")
 
-        if "debug" in info:
+        elif "debug" in extra:
             btfscan.INFO = True
             btfscan.DEBUG = True
-            print("Console output is now set to DEBUG.")
+            print("Console output is set to DEBUG.")
+
+        else:
+            print("Importing printcore..")
+            #to send a file of gcode to the printer
+            from printrun.printcore import printcore
+            from printrun import gcoder
 
 
     else:
@@ -172,11 +232,10 @@ def main():
         print("File is parsed and loaded.")
         print("Starting btf loop.")
     
+    run_init("init.gcode")
+
     # loop
-
-    #run_script()
-
-
+    #run_loop()
 
 if __name__ == '__main__':
     main()

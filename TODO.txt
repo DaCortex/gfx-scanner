@@ -15,6 +15,10 @@ TODO
 
 - removing permissions on files
 
+20.03.
+- installing printrun properly (file needs to be moved to printrun repository at the moment)
+- finding right interface & usage for printcore <-> btfscan
+
 website:
 uni bonn
 btf auf web gl

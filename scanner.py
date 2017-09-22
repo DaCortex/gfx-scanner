@@ -6,6 +6,11 @@ import os
 import argparse   #parsing arguments
 import datetime   #identification of files
 import time       #time taking
+
+#to send a file of gcode to the printer
+from printrun.printcore import printcore
+from printrun import gcoder
+
 import serial     #connection to arduino
 import serial.tools.list_ports #port identification
 
@@ -17,7 +22,7 @@ import subprocess #cp in capture_image()
 #for basic testing when there is no real system attatched
 CAMERA = False
 ARDUINO = False
-SCANNING = True
+SCANNING = False
 VALIDATION = True
 
 #print info after x pictures
@@ -65,37 +70,6 @@ def capture_image( context, camera, filepath):
     gp.check_result(gp.gp_file_save(camera_file, target))
 
     subprocess.call(['cp', target,filepath])
-
-
-#----- ARDUINO METHODS -----#
-
-#def send():
-
-#def recieve():
-
-
-#----- COMPUTATIONAL METHODS -----#
-
-#returns the amount of shots that need to be taken
-def compute_shots(degree):
-    
-    #positions per variable
-    light       = 180 / degree
-    first_axis  = 360 / degree
-    second_axis = 360 / degree
-
-    #compute all  possible positions
-    shots = light * first_axis * second_axis
-
-    return shots
-
-#returns the position of all motors given by the
-def compute_position( current_shot, overall_shots, degree):
-
-    return 5
-
-
-
 
 #----- MAIN -----#
 
@@ -206,64 +180,83 @@ def main():
                 print "This is an Arduino!"
 
         try:
-            serial_connection = serial.Serial('/dev/ttyACM0')  # open serial port
+            #serial_connection = serial.Serial('/dev/ttyACM0', 115200)  # open serial port
+            serial_connection = printcore('/dev/ttyACM0',115200)
+            time.sleep(2.0)
+            print("Communication established")
         except Exception as e:
             error(str(e))
         
         #recieving MarlinRC output
         print("Waiting for MarlinRC output...\n")
-        waiting = 15.0
+        # waiting = 15.0
 
-        time_1 = float(round(time.time()))
+        # time_1 = float(round(time.time()))
 
-        run = True
-        while(run):
-            data = serial_connection.readline()
-
-            if data:
-                print(str(data))
+        # run = True
+        # while(run):
+        #     data = serial_connection.readline()
             
-            time_2 = float(round(time.time()))
 
-            time_left = time_2 - time_1
+        #     time_2 = float(round(time.time()))
 
-            if time_left > waiting:
-                message =   "Please check for MarlinRC warnings etc.\n" + \
-                            "Type 'ok' to proceed if everything is fine.\n" + \
-                            "Type 'end' to end program. For further investigations, check: maintenance.py\n"
+        #     time_left = time_2 - time_1
 
-                user_validation(message, "ok", "end")
+        #     if data:
+        #         print(str(data))
+        #     else:
+        #         print(str(time_left))
+            
+            
+        #     if time_left > waiting:
+        #         message =   "Please check for MarlinRC warnings etc.\n" + \
+        #                     "Type 'ok' to proceed if everything is fine.\n" + \
+        #                     "Type 'end' to end program. For further investigations, check: maintenance.py\n"
 
-            time.sleep(0.1)
+        #         user_validation(message, "ok", "end")
+        #         run = False
+
+        #     time.sleep(0.1)
+
+        time.sleep(20.0)
+
+        print("test")
 
         #moving the apparatus
         print("Initiating Apparatus...\n")
         try:
                 #set pin P4 to low (dunno why)
-                serial_connection.write("M42 P4 S0\n")
+                serial_connection.send("M42 P4 S0")
                 time.sleep(1.0)
 
                 #home all axis
-                serial_connection.write("G28\n")
+                serial_connection.send("G28")
                 time.sleep(1.0)
 
                 #resetting all axis to zero          
-                serial_connection.write("G92\n")
+                serial_connection.send("G92")
                 time.sleep(1.0)
 
                 #Linear Mode and applying values to XYZ axis | F - feedrate | S checks for endstop
-                serial_connection.write("G1 X65 Y28 Z501 F3000 S1\n")
+                serial_connection.send("G1 X65 Y28 Z501 F3000 S1")
                 time.sleep(1.0)
 
                 #wait for current moves to finish
-                serial_connection.write("M400\n")
+                serial_connection.send("M400")
                 time.sleep(1.0)
 
         except Exception as e:
                 exit(str(e))
-   
+        exit()
+        
     else:
         print("WARNING: ARDUINO-Flag is set to False")
+
+    message =   "Please check for MarlinRC warnings etc.\n" + \
+                "Type 'ok' to proceed if everything is fine.\n" + \
+                "Type 'end' to end program. For further investigations, check: maintenance.py\n"
+
+    user_validation(message, "ok", "end")
 
 #-----[4] connecting & testing camera-----#
 
@@ -275,7 +268,7 @@ def main():
             gp_camera  =   gp.check_result(gp.gp_camera_new())
             gp.check_result(gp.gp_camera_init(gp_camera, gp_context))
 
-            print(str(gp_camera.get_summary(gp_context)))
+            #print(str(gp_camera.get_summary(gp_context)))
 
         except Exception as e:
             exit(str(e))
@@ -284,8 +277,8 @@ def main():
         try:
             #some test photos
             for x in range( 0, 5):
-                filepath = current_folder + "/test_" + str(x) + ".jpg"
-                #filepath = current_folder + "/test_" + str(x) + ".raw"
+                #filepath = current_folder + "/test_" + str(x) + ".jpg"
+                filepath = current_folder + "/test_" + str(x) + ".raw"
 
                 capture_image(gp_context, gp_camera, filepath)
 
@@ -308,7 +301,7 @@ def main():
     # f = open("gcodescripts/9degree.gcode")
     # for line in f:
     #     print(line)
-    #     serial_connection.write(str(line))
+    #     serial_connection.send(str(line))
 
     #     data = serial_connection.readline()
 
@@ -354,9 +347,9 @@ def main():
         #setting current motor positions
         if command == "Gcode":
             if(ARDUINO):
-                if "\n" not in command:
-                    command += "\n"
-                serial_connection.write(command)
+                if "\n" in command:
+                    command = command.replace("\n","")
+                serial_connection.send(command)
             else:
                 time.sleep(0.1) # just simulating
 
@@ -408,7 +401,7 @@ def main():
 #-----[6] cleaning up-----#
     #arduino
     if(ARDUINO):
-        serial_connection.close() # close port
+        serial_connection.disconnect() # close port
     
     #camera
     if(CAMERA):
