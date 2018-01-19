@@ -7,10 +7,6 @@ import argparse   #parsing arguments
 import datetime   #identification of files
 import time       #time taking
 
-#to send a file of gcode to the printer
-from printrun.printcore import printcore
-from printrun import gcoder
-
 import serial     #connection to arduino
 import serial.tools.list_ports #port identification
 
